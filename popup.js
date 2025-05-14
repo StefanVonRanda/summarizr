@@ -8,7 +8,7 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
     target: { tabId: tab.id },
     function: getPageContent,
   }, async (results) => {
-    const content = results[0].result;
+    const content = results[0].result + '/no_think';
     const summary = await summarizeContent(content);
     document.getElementById('summary').innerHTML = parseMd(summary);
 		document.getElementById('summarizeBtn').innerText = 'Summarize';
