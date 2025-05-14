@@ -1,0 +1,61 @@
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	font-family: inherit;
+	line-height: inherit;
+	text-wrap: pretty;
+}
+
+html {
+  text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	font-smooth: always;
+	-webkit-tap-highlight-color: transparent;
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+	text-transform: none;
+	tab-size: 2;
+	font: 400 16px / 1.5 Arial, sans-serif;
+	font-feature-settings: "kern", "liga" 1, "calt" 0;
+	font-variation-settings: normal;
+	font-optical-sizing: auto;
+	font-kerning: normal;
+	font-synthesis: none;
+	scroll-behavior: smooth;
+	overscroll-behavior: auto;
+	color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  background: Canvas;
+	color: CanvasText;
+  width: 300px;
+  padding: 10px;
+  display: grid;
+  gap: 0.5rem;
+}
+
+article {
+  white-space: pre-wrap;
+  line-height: 1.5;
+  padding: 10px;
+  max-height: 60ch;
+  overflow-y: auto;
+  border-radius: 0.25rem;
+  border: 1px solid ButtonFace;
+
+  & > * {
+    display: block;
+  }
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
