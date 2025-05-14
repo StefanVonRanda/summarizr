@@ -1,20 +1,44 @@
 document.getElementById('summarizeBtn').addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-	document.getElementById('summarizeBtn').innerText = 'Thinking';
-	document.getElementById('summarizeBtn').disabled = true;
-	document.getElementById('summary').textContent = 'Summarizing...';
+  document.getElementById('summarizeBtn').innerText = 'Thinking';
+  document.getElementById('summarizeBtn').disabled = true;
+  document.getElementById('summary').textContent = 'Summarizing...';
 
   chrome.scripting.executeScript({
     target: { tabId: tab.id },
     function: getPageContent,
   }, async (results) => {
-    const content = results[0].result + '/no_think';
+    const content = results[0].result + ' /no_think';
     const summary = await summarizeContent(content);
     document.getElementById('summary').innerHTML = convertMarkdownToHtml(summary);
-		document.getElementById('summarizeBtn').innerText = 'Summarize';
-		document.getElementById('summarizeBtn').disabled = false;
+    document.getElementById('summarizeBtn').innerText = 'Summarize';
+    document.getElementById('summarizeBtn').disabled = false;
   });
 });
+
+window.addEventListener('load', () => {
+  if (checkLMStudioConnection()) {
+    document.getElementById('status').classList.add('sucess');
+  } else {
+    document.getElementById('status').classList.add('fail');
+  }
+});
+
+async function checkLMStudioConnection() {
+  try {
+    const response = await fetch('http://localhost:1234/', {
+      method: 'GET',
+    });
+
+    if (response.ok) {
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    return error.message;
+  }
+}
 
 function getPageContent() {
   return document.body.innerText.slice(0, 4000); // Truncate for local models
@@ -60,37 +84,37 @@ class MarkdownParser {
     this.patterns = {
       // Headers
       headers: /^(#{1,6})\s+(.*?)$/gm,
-      
+
       // Bold
       bold: /\*\*(.*?)\*\*/g,
-      
+
       // Italic
       italic: /\*(.*?)\*/g,
-      
+
       // Code blocks
       codeBlocks: /```([a-z]*)\n([\s\S]*?)\n```/g,
-      
+
       // Inline code
       inlineCode: /`(.*?)`/g,
-      
+
       // Links
       links: /\[(.*?)\]\((.*?)\)/g,
-      
+
       // Images
       images: /!\[(.*?)\]\((.*?)\)/g,
-      
+
       // Unordered lists
       unorderedLists: /^[*+-]\s+(.*?)$/gm,
-      
+
       // Ordered lists
       orderedLists: /^(\d+)\.\s+(.*?)$/gm,
-      
+
       // Blockquotes
       blockquotes: /^>\s+(.*?)$/gm,
-      
+
       // Horizontal rules
       horizontalRules: /^(?:[-*_]\s*){3,}$/gm,
-      
+
       // Paragraphs (needs special handling)
       paragraphs: /^(?!<h|<ul|<ol|<blockquote|<hr|<pre|$)(.+)(?:\n|$)/gm
     };
@@ -104,10 +128,10 @@ class MarkdownParser {
   parse(markdown) {
     // Add newlines to help with regex matching
     let html = '\n' + markdown + '\n';
-    
+
     // Process code blocks first to avoid processing markdown inside them
     html = this.parseCodeBlocks(html);
-    
+
     // Process the rest of the elements
     html = this.parseHeaders(html);
     html = this.parseBold(html);
@@ -119,13 +143,13 @@ class MarkdownParser {
     html = this.parseOrderedLists(html);
     html = this.parseBlockquotes(html);
     html = this.parseHorizontalRules(html);
-    
+
     // Process paragraphs last
     html = this.parseParagraphs(html);
-    
+
     // Clean up any extra newlines
     html = html.trim();
-    
+
     return html;
   }
 
@@ -176,62 +200,62 @@ class MarkdownParser {
   parseUnorderedLists(text) {
     // First, identify groups of list items
     const groups = text.match(/(?:^[*+-]\s+.*$\n?)+/gm);
-    
+
     if (!groups) return text;
-    
+
     for (const group of groups) {
       // Create a list with all items
       const items = group.match(/^[*+-]\s+(.*?)$/gm).map(item => {
         const content = item.replace(/^[*+-]\s+/, '');
         return `<li>${content}</li>`;
       }).join('');
-      
+
       const list = `<ul>${items}</ul>`;
-      
+
       // Replace the group with the formatted list
       text = text.replace(group, list);
     }
-    
+
     return text;
   }
 
   parseOrderedLists(text) {
     // First, identify groups of list items
     const groups = text.match(/(?:^\d+\.\s+.*$\n?)+/gm);
-    
+
     if (!groups) return text;
-    
+
     for (const group of groups) {
       // Create a list with all items
       const items = group.match(/^\d+\.\s+(.*?)$/gm).map(item => {
         const content = item.replace(/^\d+\.\s+/, '');
         return `<li>${content}</li>`;
       }).join('');
-      
+
       const list = `<ol>${items}</ol>`;
-      
+
       // Replace the group with the formatted list
       text = text.replace(group, list);
     }
-    
+
     return text;
   }
 
   parseBlockquotes(text) {
     // First, identify groups of blockquote lines
     const groups = text.match(/(?:^>\s+.*$\n?)+/gm);
-    
+
     if (!groups) return text;
-    
+
     for (const group of groups) {
       // Create a blockquote with all content
       const content = group.replace(/^>\s+/gm, '');
       const blockquote = `<blockquote>${content}</blockquote>`;
-      
+
       // Replace the group with the formatted blockquote
       text = text.replace(group, blockquote);
     }
-    
+
     return text;
   }
 
@@ -246,10 +270,10 @@ class MarkdownParser {
     const lines = text.split('\n');
     let inParagraph = false;
     let result = [];
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+
       // Skip empty lines and lines that are already part of HTML elements
       if (line.trim() === '' || line.match(/^<\/?(\w+).*>$/)) {
         if (inParagraph) {
@@ -259,16 +283,16 @@ class MarkdownParser {
         result.push(line);
         continue;
       }
-      
+
       // If we're not already in a paragraph and the line isn't part of any Markdown element
       // that we've already processed, start a new paragraph
       if (!inParagraph && !line.match(/^<(\w+).*>$/)) {
         result.push('<p>');
         inParagraph = true;
       }
-      
+
       result.push(line);
-      
+
       // If the next line is empty or an HTML element, end the paragraph
       if (i + 1 < lines.length) {
         const nextLine = lines[i + 1];
@@ -280,11 +304,11 @@ class MarkdownParser {
         }
       }
     }
-    
+
     if (inParagraph) {
       result.push('</p>');
     }
-    
+
     return result.join('\n');
   }
 
@@ -301,7 +325,7 @@ class MarkdownParser {
       '"': '&quot;',
       "'": '&#039;'
     };
-    
+
     return text.replace(/[&<>"']/g, match => escapeMap[match]);
   }
 }

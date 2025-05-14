@@ -1,5 +1,7 @@
 # Summarizr
 
+![screenshot](Screenshot.png)
+
 A small page summarizing chrome extension that relies on local models served through **LM Studio**
 
 Assumes you have lm studio server running on port `1234`. It will grab any model it can find by default, but feel free to specify a model in code.
