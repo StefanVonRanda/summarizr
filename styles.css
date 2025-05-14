@@ -50,10 +50,6 @@ article {
   overflow-y: auto;
   border-radius: 0.25rem;
   border: 1px solid ButtonFace;
-
-  & > * {
-    display: block;
-  }
 }
 
 ::-webkit-scrollbar {

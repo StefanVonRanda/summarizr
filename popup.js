@@ -10,7 +10,7 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
   }, async (results) => {
     const content = results[0].result + '/no_think';
     const summary = await summarizeContent(content);
-    document.getElementById('summary').innerHTML = parseMd(summary);
+    document.getElementById('summary').innerHTML = convertMarkdownToHtml(summary);
 		document.getElementById('summarizeBtn').innerText = 'Summarize';
 		document.getElementById('summarizeBtn').disabled = false;
   });
@@ -54,62 +54,260 @@ async function summarizeContent(text) {
   }
 }
 
-const parseMd = (md) => {
-	//ul
-	md = md.replace(/^\s*\n\*/gm, "<ul>\n*");
-	md = md.replace(/^(\*.+)\s*\n([^\*])/gm, "$1\n</ul>\n\n$2");
-	md = md.replace(/^\*(.+)/gm, "<li>$1</li>");
+class MarkdownParser {
+  constructor() {
+    // Define regex patterns for Markdown elements
+    this.patterns = {
+      // Headers
+      headers: /^(#{1,6})\s+(.*?)$/gm,
+      
+      // Bold
+      bold: /\*\*(.*?)\*\*/g,
+      
+      // Italic
+      italic: /\*(.*?)\*/g,
+      
+      // Code blocks
+      codeBlocks: /```([a-z]*)\n([\s\S]*?)\n```/g,
+      
+      // Inline code
+      inlineCode: /`(.*?)`/g,
+      
+      // Links
+      links: /\[(.*?)\]\((.*?)\)/g,
+      
+      // Images
+      images: /!\[(.*?)\]\((.*?)\)/g,
+      
+      // Unordered lists
+      unorderedLists: /^[*+-]\s+(.*?)$/gm,
+      
+      // Ordered lists
+      orderedLists: /^(\d+)\.\s+(.*?)$/gm,
+      
+      // Blockquotes
+      blockquotes: /^>\s+(.*?)$/gm,
+      
+      // Horizontal rules
+      horizontalRules: /^(?:[-*_]\s*){3,}$/gm,
+      
+      // Paragraphs (needs special handling)
+      paragraphs: /^(?!<h|<ul|<ol|<blockquote|<hr|<pre|$)(.+)(?:\n|$)/gm
+    };
+  }
 
-	//ol
-	md = md.replace(/^\s*\n\d\./gm, "<ol>\n1.");
-	md = md.replace(/^(\d\..+)\s*\n([^\d\.])/gm, "$1\n</ol>\n\n$2");
-	md = md.replace(/^\d\.(.+)/gm, "<li>$1</li>");
+  /**
+   * Parse markdown text to HTML
+   * @param {string} markdown - The markdown text to parse
+   * @return {string} The resulting HTML
+   */
+  parse(markdown) {
+    // Add newlines to help with regex matching
+    let html = '\n' + markdown + '\n';
+    
+    // Process code blocks first to avoid processing markdown inside them
+    html = this.parseCodeBlocks(html);
+    
+    // Process the rest of the elements
+    html = this.parseHeaders(html);
+    html = this.parseBold(html);
+    html = this.parseItalic(html);
+    html = this.parseInlineCode(html);
+    html = this.parseLinks(html);
+    html = this.parseImages(html);
+    html = this.parseUnorderedLists(html);
+    html = this.parseOrderedLists(html);
+    html = this.parseBlockquotes(html);
+    html = this.parseHorizontalRules(html);
+    
+    // Process paragraphs last
+    html = this.parseParagraphs(html);
+    
+    // Clean up any extra newlines
+    html = html.trim();
+    
+    return html;
+  }
 
-	//blockquote
-	md = md.replace(/^\>(.+)/gm, "<blockquote>$1</blockquote>");
+  parseHeaders(text) {
+    return text.replace(this.patterns.headers, (match, level, content) => {
+      const headerLevel = level.length;
+      return `<h${headerLevel}>${content.trim()}</h${headerLevel}>`;
+    });
+  }
 
-	//h
-	md = md.replace(/[\#]{6}(.+)/g, "<h6>$1</h6>");
-	md = md.replace(/[\#]{5}(.+)/g, "<h5>$1</h5>");
-	md = md.replace(/[\#]{4}(.+)/g, "<h4>$1</h4>");
-	md = md.replace(/[\#]{3}(.+)/g, "<h3>$1</h3>");
-	md = md.replace(/[\#]{2}(.+)/g, "<h2>$1</h2>");
-	md = md.replace(/[\#]{1}(.+)/g, "<h1>$1</h1>");
+  parseBold(text) {
+    return text.replace(this.patterns.bold, (match, content) => {
+      return `<strong>${content}</strong>`;
+    });
+  }
 
-	//alt h
-	md = md.replace(/^(.+)\n\=+/gm, "$1<hr>");
-	md = md.replace(/^(.+)\n\-+/gm, "$1<hr>");
+  parseItalic(text) {
+    return text.replace(this.patterns.italic, (match, content) => {
+      return `<em>${content}</em>`;
+    });
+  }
 
-	//images
-	md = md.replace(/\!\[([^\]]+)\]\(([^\)]+)\)/g, '<img src="$2" alt="$1" />');
+  parseCodeBlocks(text) {
+    return text.replace(this.patterns.codeBlocks, (match, language, content) => {
+      const languageClass = language ? ` class="language-${language}"` : '';
+      return `<pre><code${languageClass}>${this.escapeHtml(content)}</code></pre>`;
+    });
+  }
 
-	//links
-	md = md.replace(
-		/[\[]{1}([^\]]+)[\]]{1}[\(]{1}([^\)\"]+)(\"(.+)\")?[\)]{1}/g,
-		'<a href="$2" title="$4">$1</a>'
-	);
+  parseInlineCode(text) {
+    return text.replace(this.patterns.inlineCode, (match, content) => {
+      return `<code>${this.escapeHtml(content)}</code>`;
+    });
+  }
 
-	//font styles
-	md = md.replace(/[\*\_]{2}([^\*\_]+)[\*\_]{2}/g, "<b>$1</b>");
-	md = md.replace(/[\*\_]{1}([^\*\_]+)[\*\_]{1}/g, "<i>$1</i>");
-	md = md.replace(/[\~]{2}([^\~]+)[\~]{2}/g, "<del>$1</del>");
+  parseLinks(text) {
+    return text.replace(this.patterns.links, (match, text, url) => {
+      return `<a href="${url}">${text}</a>`;
+    });
+  }
 
-	//pre
-	md = md.replace(/^\s*\n\`\`\`(([^\s]+))?/gm, '<pre class="$2">');
-	md = md.replace(/^\`\`\`\s*\n/gm, "</pre>\n\n");
+  parseImages(text) {
+    return text.replace(this.patterns.images, (match, alt, url) => {
+      return `<img src="${url}" alt="${alt}">`;
+    });
+  }
 
-	//code
-	md = md.replace(/[\`]{1}([^\`]+)[\`]{1}/g, "<code>$1</code>");
+  parseUnorderedLists(text) {
+    // First, identify groups of list items
+    const groups = text.match(/(?:^[*+-]\s+.*$\n?)+/gm);
+    
+    if (!groups) return text;
+    
+    for (const group of groups) {
+      // Create a list with all items
+      const items = group.match(/^[*+-]\s+(.*?)$/gm).map(item => {
+        const content = item.replace(/^[*+-]\s+/, '');
+        return `<li>${content}</li>`;
+      }).join('');
+      
+      const list = `<ul>${items}</ul>`;
+      
+      // Replace the group with the formatted list
+      text = text.replace(group, list);
+    }
+    
+    return text;
+  }
 
-	//p
-	md = md.replace(/^\s*(\n)?(.+)/gm, (m) => {
-		return /\<(\/)?(h\d|ul|ol|li|blockquote|pre|img)/.test(m)
-			? m
-			: "<p>" + m + "</p>";
-	});
+  parseOrderedLists(text) {
+    // First, identify groups of list items
+    const groups = text.match(/(?:^\d+\.\s+.*$\n?)+/gm);
+    
+    if (!groups) return text;
+    
+    for (const group of groups) {
+      // Create a list with all items
+      const items = group.match(/^\d+\.\s+(.*?)$/gm).map(item => {
+        const content = item.replace(/^\d+\.\s+/, '');
+        return `<li>${content}</li>`;
+      }).join('');
+      
+      const list = `<ol>${items}</ol>`;
+      
+      // Replace the group with the formatted list
+      text = text.replace(group, list);
+    }
+    
+    return text;
+  }
 
-	//strip p from pre
-	md = md.replace(/(\<pre.+\>)\s*\n\<p\>(.+)\<\/p\>/gm, "$1$2");
+  parseBlockquotes(text) {
+    // First, identify groups of blockquote lines
+    const groups = text.match(/(?:^>\s+.*$\n?)+/gm);
+    
+    if (!groups) return text;
+    
+    for (const group of groups) {
+      // Create a blockquote with all content
+      const content = group.replace(/^>\s+/gm, '');
+      const blockquote = `<blockquote>${content}</blockquote>`;
+      
+      // Replace the group with the formatted blockquote
+      text = text.replace(group, blockquote);
+    }
+    
+    return text;
+  }
 
-	return md;
-};
+  parseHorizontalRules(text) {
+    return text.replace(this.patterns.horizontalRules, () => {
+      return '<hr>';
+    });
+  }
+
+  parseParagraphs(text) {
+    // We need to handle paragraphs carefully to avoid wrapping other elements
+    const lines = text.split('\n');
+    let inParagraph = false;
+    let result = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Skip empty lines and lines that are already part of HTML elements
+      if (line.trim() === '' || line.match(/^<\/?(\w+).*>$/)) {
+        if (inParagraph) {
+          result.push('</p>');
+          inParagraph = false;
+        }
+        result.push(line);
+        continue;
+      }
+      
+      // If we're not already in a paragraph and the line isn't part of any Markdown element
+      // that we've already processed, start a new paragraph
+      if (!inParagraph && !line.match(/^<(\w+).*>$/)) {
+        result.push('<p>');
+        inParagraph = true;
+      }
+      
+      result.push(line);
+      
+      // If the next line is empty or an HTML element, end the paragraph
+      if (i + 1 < lines.length) {
+        const nextLine = lines[i + 1];
+        if (nextLine.trim() === '' || nextLine.match(/^<(\w+).*>$/)) {
+          if (inParagraph) {
+            result.push('</p>');
+            inParagraph = false;
+          }
+        }
+      }
+    }
+    
+    if (inParagraph) {
+      result.push('</p>');
+    }
+    
+    return result.join('\n');
+  }
+
+  /**
+   * Escape HTML characters in code blocks
+   * @param {string} text - The text to escape
+   * @return {string} Escaped text
+   */
+  escapeHtml(text) {
+    const escapeMap = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    
+    return text.replace(/[&<>"']/g, match => escapeMap[match]);
+  }
+}
+
+// Example usage
+function convertMarkdownToHtml(markdownText) {
+  const parser = new MarkdownParser();
+  return parser.parse(markdownText);
+}
