@@ -34,18 +34,22 @@ body {
 	background: Canvas;
 	color: CanvasText;
 	width: 50ch;
+	overflow: hidden;
 }
 
 main {
   padding: 10px;
   display: grid;
+	grid-template-rows: 1fr auto auto auto;
   gap: 0.5rem;
+	overflow: hidden;
 }
 
 article {
+	font-size: 1.125em;
   line-height: 1.5;
   padding: 10px;
-  max-height: 60ch;
+  max-height: 48ch;
 	overflow-x: hidden;
   overflow-y: auto;
   border-radius: 0.25rem;
@@ -64,20 +68,10 @@ article {
 
 	&.sucess {
 		color: green;
-	
-		&::after {
-			content: 'Connected to LM Studio';
-			color: green;
-		}
 	}
 
 	&.fail {
-		color: crimson;
-
-		&::after {
-			content: 'Could not connect to LM Studio';
-			color: crimson;
-		}
+		color: red;
 	}
 }
 

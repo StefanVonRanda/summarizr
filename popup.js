@@ -1,28 +1,64 @@
 document.getElementById('summarizeBtn').addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  document.getElementById('summarizeBtn').innerText = 'Thinking';
-  document.getElementById('summarizeBtn').disabled = true;
-  document.getElementById('summary').textContent = 'Summarizing...';
+  if (document.getElementById('summarizeBtn').innerText === 'Summarize') {
+    document.getElementById('summarizeBtn').innerText = 'Thinking';
+    document.getElementById('summarizeBtn').disabled = true;
+    document.getElementById('summary').textContent = 'Summarizing...';
 
-  chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    function: getPageContent,
-  }, async (results) => {
-    const content = results[0].result + ' /no_think';
-    const summary = await summarizeContent(content);
-    document.getElementById('summary').innerHTML = convertMarkdownToHtml(summary);
-    document.getElementById('summarizeBtn').innerText = 'Summarize';
-    document.getElementById('summarizeBtn').disabled = false;
-  });
-});
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      function: getPageContent,
+    }, async (results) => {
 
-window.addEventListener('load', () => {
-  if (checkLMStudioConnection()) {
-    document.getElementById('status').classList.add('sucess');
-  } else {
-    document.getElementById('status').classList.add('fail');
+      const content = results[0].result + ' /no_think';
+      const summary = await summarizeContent(content);
+      document.getElementById('summary').innerHTML = summary.replace('```html','').replace('```','');
+
+      document.getElementById('summarizeBtn').innerText = 'Find out more';
+      document.getElementById('summarizeBtn').disabled = false;
+      document.getElementById('interogate').hidden = false;
+    });
+  } else if (document.getElementById('summarizeBtn').innerText === 'Find out more') {
+    document.getElementById('summarizeBtn').innerText = 'Find out more';
+    document.getElementById('summarizeBtn').disabled = true;
+    document.getElementById('summary').textContent = 'Researching...';
+
+    const text = document.getElementById('interogate').value;
+
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      function: getPageContent,
+    }, async (results) => {
+
+      const content = results[0].result + ' /no_think';
+      const summary = await interogate(content, text);
+      document.getElementById('summary').innerHTML = summary.replace('```html','').replace('```','');
+
+      document.getElementById('summarizeBtn').innerText = 'Find out more';
+      document.getElementById('summarizeBtn').disabled = false;
+      document.getElementById('interogate').hidden = false;
+    });
+
+    interogate(document.getElementById('interogate').value);
   }
 });
+
+window.addEventListener('load', async () => {
+  await checkLMStudioConnection();
+});
+
+async function getModelName() {
+  const response = await fetch('http://127.0.0.1:1234/v1/models', {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer not-needed'
+    }
+  }
+  );
+
+  const data = await response.json();
+  document.getElementById('status').textContent = 'Connected to ' + data.data[0].id;
+}
 
 async function checkLMStudioConnection() {
   try {
@@ -31,32 +67,62 @@ async function checkLMStudioConnection() {
     });
 
     if (response.ok) {
-      return true;
+      document.getElementById('status').classList.add('sucess');
+      getModelName();
     } else {
-      return false;
+      document.getElementById('status').classList.add('fail');
+      document.getElementById('status').textContent = 'Could not connect to LM Studio';
     }
   } catch (error) {
-    return error.message;
+    document.getElementById('status').classList.add('fail');
+    document.getElementById('status').textContent = 'Could not connect to LM Studio';
   }
 }
 
 function getPageContent() {
-  return document.body.innerText.slice(0, 4000); // Truncate for local models
+  return document.body.innerText.slice(0, 4000);
 }
 
 function cleanModelOutput(text) {
   return text
-    .replace(/<think>[\s\S]*?<\/think>/gi, "") // removes <think>...</think>
-    .replace(/\s{2,}/g, " ")                          // collapse extra whitespace
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+async function interogate(content, text) {
+  const payload = {
+    model: 'any',
+    messages: [
+      { role: "system", content: "You are a helpful assistant that answers questions about webpage content. You respond in html only. Don't include" },
+      { role: "user", content: `${text}. base your answer off the this webpage content:\n\n${content}` }
+    ],
+    temperature: 0.7
+  };
+
+  try {
+    const response = await fetch("http://localhost:1234/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    const rawOutput = data.choices[0].message.content;
+    return cleanModelOutput(rawOutput);
+
+  } catch (err) {
+    console.error("Fetch error:", err);
+    return "Error communicating with LM Studio.";
+  }
 }
 
 async function summarizeContent(text) {
   const payload = {
-    model: "any", // or omit if LM Studio doesn’t require
+    model: "any",
     messages: [
-      { role: "system", content: "You are a helpful assistant that summarizes text." },
-      { role: "user", content: `Summarize the following:\n\n${text}` }
+      { role: "system", content: "You are a helpful assistant that summarizes webpage content. You respond in html only. Don't include" },
+      { role: "user", content: `Summarize the following webpage content:\n\n${text}` }
     ],
     temperature: 0.7
   };
