@@ -90,20 +90,14 @@ function cleanModelOutput(text) {
     .trim();
 }
 
-const interogationPrompt = `You are a helpful assistant that answers questions based on provided webpage content. Your input will include webpage text or raw HTML, followed by a user question.
-
+const interogationPrompt = `
+You are a helpful assistant that answers questions based on provided webpage content. Your input will include webpage text or raw HTML, followed by a user question.
 Your task is to:
-
-Understand and extract relevant information from the content
-
-Provide a clear, concise, and factual answer to the question
-
-Format the answer using valid inline HTML only (i.e., no <html>, <head>, or <body> tags)
-
+Understand and extract relevant information from the content.
+Provide a clear, concise, and factual answer to the question.
+Format the answer using valid inline HTML only (i.e., no <html>, <head>, or <body> tags).
 Use appropriate HTML elements to enhance readability (e.g., <p>, <strong>, <ul>, <li>, <a> for links). If the answer references key points or details, consider using bullet points or bold highlights.
-
 Do not include JavaScript, stylesheets, or external scripts.
-
 If the answer is not found in the content, say so clearly in HTML format (e.g., <p><em>Sorry, the answer to this question is not available in the provided content.</em></p>).`;
 
 async function interogate(content, text) {
@@ -133,20 +127,14 @@ async function interogate(content, text) {
   }
 }
 
-const summaryPrompt = `You are an expert web content summarizer. You will receive webpage data as input (either in plain text or raw HTML). Your task is to analyze the content and generate a concise, human-readable summary formatted as valid inline HTML.
-
+const summaryPrompt = `
+You are an expert web content summarizer. You will receive webpage data as input (either in plain text or raw HTML). Your task is to analyze the content and generate a concise, human-readable summary formatted as valid inline HTML.
 Your output should be:
-
-Structured with basic semantic HTML elements (e.g., <p>, <strong>, <ul>, <li>)
-
-No <html>, <head>, or <body> tags—just the inline content
-
-No JavaScript or external styles
-
-Ideally limited to 2–4 short paragraphs or bullet points
-
-Focused on key topics, purpose, or notable elements of the webpage
-
+Structured with basic semantic HTML elements (e.g., <p>, <strong>, <ul>, <li>).
+No <html>, <head>, or <body> tags—just the inline content.
+No JavaScript or external styles.
+Ideally limited to 2–4 short paragraphs or bullet points.
+Focused on key topics, purpose, or notable elements of the webpage.
 Make the summary informative and skimmable. If the page is product- or service-related, highlight core offerings and value propositions.`;
 
 async function summarizeContent(text) {
@@ -176,260 +164,24 @@ async function summarizeContent(text) {
   }
 }
 
-class MarkdownParser {
-  constructor() {
-    // Define regex patterns for Markdown elements
-    this.patterns = {
-      // Headers
-      headers: /^(#{1,6})\s+(.*?)$/gm,
+const speakBtn = document.getElementById('ttsBtn');
 
-      // Bold
-      bold: /\*\*(.*?)\*\*/g,
-
-      // Italic
-      italic: /\*(.*?)\*/g,
-
-      // Code blocks
-      codeBlocks: /```([a-z]*)\n([\s\S]*?)\n```/g,
-
-      // Inline code
-      inlineCode: /`(.*?)`/g,
-
-      // Links
-      links: /\[(.*?)\]\((.*?)\)/g,
-
-      // Images
-      images: /!\[(.*?)\]\((.*?)\)/g,
-
-      // Unordered lists
-      unorderedLists: /^[*+-]\s+(.*?)$/gm,
-
-      // Ordered lists
-      orderedLists: /^(\d+)\.\s+(.*?)$/gm,
-
-      // Blockquotes
-      blockquotes: /^>\s+(.*?)$/gm,
-
-      // Horizontal rules
-      horizontalRules: /^(?:[-*_]\s*){3,}$/gm,
-
-      // Paragraphs (needs special handling)
-      paragraphs: /^(?!<h|<ul|<ol|<blockquote|<hr|<pre|$)(.+)(?:\n|$)/gm
-    };
+speakBtn.addEventListener('click', () => {
+  if (speechSynthesis.speaking) {
+    speechSynthesis.cancel();
+    return;
   }
 
-  /**
-   * Parse markdown text to HTML
-   * @param {string} markdown - The markdown text to parse
-   * @return {string} The resulting HTML
-   */
-  parse(markdown) {
-    // Add newlines to help with regex matching
-    let html = '\n' + markdown + '\n';
+  const summaryText = document.getElementById('summary').innerText;
+  if (!summaryText) return;
 
-    // Process code blocks first to avoid processing markdown inside them
-    html = this.parseCodeBlocks(html);
+  const utterance = new SpeechSynthesisUtterance(summaryText);
+  utterance.rate = 1.5;
 
-    // Process the rest of the elements
-    html = this.parseHeaders(html);
-    html = this.parseBold(html);
-    html = this.parseItalic(html);
-    html = this.parseInlineCode(html);
-    html = this.parseLinks(html);
-    html = this.parseImages(html);
-    html = this.parseUnorderedLists(html);
-    html = this.parseOrderedLists(html);
-    html = this.parseBlockquotes(html);
-    html = this.parseHorizontalRules(html);
+  speechSynthesis.speak(utterance);
+});
 
-    // Process paragraphs last
-    html = this.parseParagraphs(html);
-
-    // Clean up any extra newlines
-    html = html.trim();
-
-    return html;
-  }
-
-  parseHeaders(text) {
-    return text.replace(this.patterns.headers, (match, level, content) => {
-      const headerLevel = level.length;
-      return `<h${headerLevel}>${content.trim()}</h${headerLevel}>`;
-    });
-  }
-
-  parseBold(text) {
-    return text.replace(this.patterns.bold, (match, content) => {
-      return `<strong>${content}</strong>`;
-    });
-  }
-
-  parseItalic(text) {
-    return text.replace(this.patterns.italic, (match, content) => {
-      return `<em>${content}</em>`;
-    });
-  }
-
-  parseCodeBlocks(text) {
-    return text.replace(this.patterns.codeBlocks, (match, language, content) => {
-      const languageClass = language ? ` class="language-${language}"` : '';
-      return `<pre><code${languageClass}>${this.escapeHtml(content)}</code></pre>`;
-    });
-  }
-
-  parseInlineCode(text) {
-    return text.replace(this.patterns.inlineCode, (match, content) => {
-      return `<code>${this.escapeHtml(content)}</code>`;
-    });
-  }
-
-  parseLinks(text) {
-    return text.replace(this.patterns.links, (match, text, url) => {
-      return `<a href="${url}">${text}</a>`;
-    });
-  }
-
-  parseImages(text) {
-    return text.replace(this.patterns.images, (match, alt, url) => {
-      return `<img src="${url}" alt="${alt}">`;
-    });
-  }
-
-  parseUnorderedLists(text) {
-    // First, identify groups of list items
-    const groups = text.match(/(?:^[*+-]\s+.*$\n?)+/gm);
-
-    if (!groups) return text;
-
-    for (const group of groups) {
-      // Create a list with all items
-      const items = group.match(/^[*+-]\s+(.*?)$/gm).map(item => {
-        const content = item.replace(/^[*+-]\s+/, '');
-        return `<li>${content}</li>`;
-      }).join('');
-
-      const list = `<ul>${items}</ul>`;
-
-      // Replace the group with the formatted list
-      text = text.replace(group, list);
-    }
-
-    return text;
-  }
-
-  parseOrderedLists(text) {
-    // First, identify groups of list items
-    const groups = text.match(/(?:^\d+\.\s+.*$\n?)+/gm);
-
-    if (!groups) return text;
-
-    for (const group of groups) {
-      // Create a list with all items
-      const items = group.match(/^\d+\.\s+(.*?)$/gm).map(item => {
-        const content = item.replace(/^\d+\.\s+/, '');
-        return `<li>${content}</li>`;
-      }).join('');
-
-      const list = `<ol>${items}</ol>`;
-
-      // Replace the group with the formatted list
-      text = text.replace(group, list);
-    }
-
-    return text;
-  }
-
-  parseBlockquotes(text) {
-    // First, identify groups of blockquote lines
-    const groups = text.match(/(?:^>\s+.*$\n?)+/gm);
-
-    if (!groups) return text;
-
-    for (const group of groups) {
-      // Create a blockquote with all content
-      const content = group.replace(/^>\s+/gm, '');
-      const blockquote = `<blockquote>${content}</blockquote>`;
-
-      // Replace the group with the formatted blockquote
-      text = text.replace(group, blockquote);
-    }
-
-    return text;
-  }
-
-  parseHorizontalRules(text) {
-    return text.replace(this.patterns.horizontalRules, () => {
-      return '<hr>';
-    });
-  }
-
-  parseParagraphs(text) {
-    // We need to handle paragraphs carefully to avoid wrapping other elements
-    const lines = text.split('\n');
-    let inParagraph = false;
-    let result = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Skip empty lines and lines that are already part of HTML elements
-      if (line.trim() === '' || line.match(/^<\/?(\w+).*>$/)) {
-        if (inParagraph) {
-          result.push('</p>');
-          inParagraph = false;
-        }
-        result.push(line);
-        continue;
-      }
-
-      // If we're not already in a paragraph and the line isn't part of any Markdown element
-      // that we've already processed, start a new paragraph
-      if (!inParagraph && !line.match(/^<(\w+).*>$/)) {
-        result.push('<p>');
-        inParagraph = true;
-      }
-
-      result.push(line);
-
-      // If the next line is empty or an HTML element, end the paragraph
-      if (i + 1 < lines.length) {
-        const nextLine = lines[i + 1];
-        if (nextLine.trim() === '' || nextLine.match(/^<(\w+).*>$/)) {
-          if (inParagraph) {
-            result.push('</p>');
-            inParagraph = false;
-          }
-        }
-      }
-    }
-
-    if (inParagraph) {
-      result.push('</p>');
-    }
-
-    return result.join('\n');
-  }
-
-  /**
-   * Escape HTML characters in code blocks
-   * @param {string} text - The text to escape
-   * @return {string} Escaped text
-   */
-  escapeHtml(text) {
-    const escapeMap = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
-
-    return text.replace(/[&<>"']/g, match => escapeMap[match]);
-  }
-}
-
-// Example usage
-function convertMarkdownToHtml(markdownText) {
-  const parser = new MarkdownParser();
-  return parser.parse(markdownText);
-}
+chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+  const tabKey = `summary_${tab.id}`;
+  chrome.storage.local.set({ [tabKey]: summary });
+});

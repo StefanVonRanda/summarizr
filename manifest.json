@@ -3,7 +3,7 @@
   "name": "Summarize with LM Studio",
   "version": "1.0",
   "description": "Summarize the current webpage using a local LM Studio model",
-  "permissions": ["scripting", "activeTab"],
+  "permissions": ["scripting", "activeTab", "storage"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon.png"

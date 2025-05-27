@@ -56,6 +56,29 @@ article {
   border: 1px solid ButtonFace;
 }
 
+button {
+	border-radius: 0.25rem;
+	border: unset;
+	background-color: ButtonFace;
+	color: ButtonText;
+	transition: filter 200ms ease;
+
+	&:hover,
+	&:focus-within {
+		filter: contrast(2);
+	}
+}
+
+#summarizeBtn {
+	background: ActiveText;
+	flex-grow: 1;
+}
+
+#ttsBtn svg {
+	width: 0.875em;
+	height: 0.875em;
+}
+
 #status {
 
 	&::before {
