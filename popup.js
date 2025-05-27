@@ -90,12 +90,28 @@ function cleanModelOutput(text) {
     .trim();
 }
 
+const interogationPrompt = `You are a helpful assistant that answers questions based on provided webpage content. Your input will include webpage text or raw HTML, followed by a user question.
+
+Your task is to:
+
+Understand and extract relevant information from the content
+
+Provide a clear, concise, and factual answer to the question
+
+Format the answer using valid inline HTML only (i.e., no <html>, <head>, or <body> tags)
+
+Use appropriate HTML elements to enhance readability (e.g., <p>, <strong>, <ul>, <li>, <a> for links). If the answer references key points or details, consider using bullet points or bold highlights.
+
+Do not include JavaScript, stylesheets, or external scripts.
+
+If the answer is not found in the content, say so clearly in HTML format (e.g., <p><em>Sorry, the answer to this question is not available in the provided content.</em></p>).`;
+
 async function interogate(content, text) {
   const payload = {
     model: 'any',
     messages: [
-      { role: "system", content: "You are a helpful assistant that answers questions about webpage content. You respond in html only. Don't include" },
-      { role: "user", content: `${text}. base your answer off the this webpage content:\n\n${content}` }
+      { role: "system", content: interogationPrompt },
+      { role: "user", content: `${text}.\n\n ${content}` }
     ],
     temperature: 0.7
   };
@@ -117,12 +133,28 @@ async function interogate(content, text) {
   }
 }
 
+const summaryPrompt = `You are an expert web content summarizer. You will receive webpage data as input (either in plain text or raw HTML). Your task is to analyze the content and generate a concise, human-readable summary formatted as valid inline HTML.
+
+Your output should be:
+
+Structured with basic semantic HTML elements (e.g., <p>, <strong>, <ul>, <li>)
+
+No <html>, <head>, or <body> tags—just the inline content
+
+No JavaScript or external styles
+
+Ideally limited to 2–4 short paragraphs or bullet points
+
+Focused on key topics, purpose, or notable elements of the webpage
+
+Make the summary informative and skimmable. If the page is product- or service-related, highlight core offerings and value propositions.`;
+
 async function summarizeContent(text) {
   const payload = {
     model: "any",
     messages: [
-      { role: "system", content: "You are a helpful assistant that summarizes webpage content. You respond in html only. Don't include" },
-      { role: "user", content: `Summarize the following webpage content:\n\n${text}` }
+      { role: "system", content: summaryPrompt },
+      { role: "user", content: `Summarize the following webpage content and respond in html:\n\n${text}` }
     ],
     temperature: 0.7
   };
