@@ -135,6 +135,7 @@ No <html>, <head>, or <body> tags—just the inline content.
 No JavaScript or external styles.
 Ideally limited to 2–4 short paragraphs or bullet points.
 Focused on key topics, purpose, or notable elements of the webpage.
+You will ignore any mention of on page cookies privacy or newsletters.
 Make the summary informative and skimmable. If the page is product- or service-related, highlight core offerings and value propositions.`;
 
 async function summarizeContent(text) {
@@ -178,10 +179,30 @@ speakBtn.addEventListener('click', () => {
   const utterance = new SpeechSynthesisUtterance(summaryText);
   utterance.rate = 1.5;
 
-  speechSynthesis.speak(utterance);
+  // Get available voices
+  const voices = speechSynthesis.getVoices();
+
+  // OPTIONAL: Wait for voices to be loaded (for some browsers)
+  if (!voices.length) {
+    speechSynthesis.onvoiceschanged = () => {
+      const updatedVoices = speechSynthesis.getVoices();
+      selectVoiceAndSpeak(updatedVoices, utterance);
+    };
+  } else {
+    selectVoiceAndSpeak(voices, utterance);
+  }
 });
 
-chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-  const tabKey = `summary_${tab.id}`;
-  chrome.storage.local.set({ [tabKey]: summary });
-});
+function selectVoiceAndSpeak(voices, utterance) {
+  // Change this to match the voice you want
+  const desiredVoiceName = 'Samantha'; // Example voice name
+
+  const selectedVoice = voices.find(voice => voice.name === desiredVoiceName);
+  if (selectedVoice) {
+    utterance.voice = selectedVoice;
+  } else {
+    console.warn(`Voice "${desiredVoiceName}" not found. Using default voice.`);
+  }
+
+  speechSynthesis.speak(utterance);
+}
